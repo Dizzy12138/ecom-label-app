@@ -15,6 +15,7 @@ const Dashboard = () => {
   const [rules, setRules] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [labelType, setLabelType] = useState('auto')
 
   const token = localStorage.getItem('token')
 
@@ -49,6 +50,7 @@ const Dashboard = () => {
       const base64Images = await Promise.all(images.map((f) => toBase64(f)))
       const res = await axiosInstance.post('/api/analyze', {
         images: base64Images,
+        type: labelType,
       })
       setAnalysis(res.data)
     } catch (err) {
@@ -115,6 +117,18 @@ const Dashboard = () => {
             accept="image/*"
             onChange={handleImageChange}
           />
+          <select
+            value={labelType}
+            onChange={(e) => setLabelType(e.target.value)}
+            style={{ marginTop: '1rem', display: 'block' }}
+          >
+            <option value="auto">auto</option>
+            <option value="carton">carton</option>
+            <option value="product">product</option>
+            <option value="address">address</option>
+            <option value="shippingmark">shippingmark</option>
+            <option value="origin">origin</option>
+          </select>
           <button
             type="button"
             onClick={handleAnalyse}
@@ -146,6 +160,9 @@ const Dashboard = () => {
           <h2>Results</h2>
           {analysis ? (
             <div>
+              <p>
+                <strong>Type:</strong> {analysis.type}
+              </p>
               <p>
                 <strong>Verdict:</strong> {analysis.verdict}
               </p>
