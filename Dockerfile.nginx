@@ -1,0 +1,28 @@
+# Multi‑stage Dockerfile that builds the React frontend and serves it
+# through an Nginx reverse proxy. The second stage copies the compiled
+# frontend into the Nginx image and uses the custom configuration defined
+# in nginx/nginx.conf to proxy API requests to the backend container and
+# expose Prometheus metrics.
+
+#### Stage 1: build the frontend
+FROM node:18-alpine AS frontend-build
+WORKDIR /app
+COPY frontend/package*.json ./
+RUN npm install
+COPY frontend/ ./
+ENV DISABLE_ESLINT_PLUGIN=true
+RUN npm run build
+
+#### Stage 2: runtime image with Nginx
+FROM nginx:alpine
+
+# Copy custom nginx configuration
+COPY nginx/nginx.conf /etc/nginx/nginx.conf
+
+# Copy built frontend from previous stage
+COPY --from=frontend-build /app/build /usr/share/nginx/html
+
+EXPOSE 80
+
+# Start Nginx in foreground
+CMD ["nginx", "-g", "daemon off;"]

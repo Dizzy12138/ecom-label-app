@@ -1,0 +1,70 @@
+version: '3.9'
+
+services:
+  mongodb:
+    image: mongo:6
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+      MONGO_INITDB_DATABASE: ecom_label_db
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "mongodb://root:example@localhost:27017/admin", "--eval", "db.runCommand({ ping: 1 })"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    restart: unless-stopped
+    environment:
+      # 用 root 账户连接（示例）；生产建议创建业务用户
+      MONGODB_URI: mongodb://root:example@mongodb:27017/ecom_label_db?authSource=admin
+      ADMIN_USERNAME: admin
+      ADMIN_PASSWORD: Admin@123!
+      JWT_SECRET: supersecretkey
+      PORT: 3000
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    expose:
+      - "3000"
+
+  nginx:
+    build:
+      context: .
+      dockerfile: Dockerfile.nginx
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "9091:80"   # 宿主 9091 -> 容器 80（与 nginx.conf 对齐）
+
+  prometheus:
+    image: prom/prometheus
+    restart: unless-stopped
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - backend
+
+  grafana:
+    image: grafana/grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    ports:
+      - "7000:3000"
+    depends_on:
+      - prometheus
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+
+volumes:
+  mongo_data:
