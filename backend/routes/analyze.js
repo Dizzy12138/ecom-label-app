@@ -1,44 +1,16 @@
 const express = require('express')
 const { verifyToken } = require('../middlewares/auth')
+const { analyzeImages } = require('../services/analysisService')
 
 const router = express.Router()
 
 /**
- * Dummy analysis function. In a production environment this would call
- * sophisticated OCR, barcode decoding and vision models as described in the
- * system design document. The current implementation returns a static
- * response that illustrates the expected shape of the output. See §2–5 of
- * the design for details on pre‑processing, OCR, barcode and rule matching【695031078982543†L17-L20】【695031078982543†L21-L30】.
+ * This route forwards image payloads to an external analysis service
+ * (e.g. OCR/VLM pipeline) configured via MODEL_API_URL. When the
+ * environment variable is missing or the remote call fails, a mocked
+ * response is returned so the frontend can still function during
+ * development.
  */
-const dummyAnalyze = async (images, type) => {
-  // Simulate asynchronous processing
-  await new Promise((resolve) => setTimeout(resolve, 200))
-  return {
-    type: type || 'auto',
-    barcodes: [
-      {
-        symbology: 'CODE128',
-        text: 'X00ABC1234',
-        bbox: [100, 200, 80, 20],
-        conf: 0.98,
-      },
-    ],
-    texts: [
-      { text: 'NEW', bbox: [50, 50, 30, 10], conf: 0.93 },
-      { text: 'MADE IN CHINA', bbox: [10, 150, 200, 40], conf: 0.89 },
-    ],
-    matches: {
-      fnsku: {
-        target: 'X00ABC1234',
-        system: 'X00ABC1234',
-        distance: 0,
-        passed: true,
-      },
-    },
-    flags: ['HAS_NEW'],
-    verdict: 'PASS',
-  }
-}
 
 /**
  * @swagger
@@ -124,7 +96,7 @@ router.post('/', verifyToken, async (req, res) => {
     return res.status(400).json({ message: 'images array is required' })
   }
   try {
-    const result = await dummyAnalyze(images, type)
+    const result = await analyzeImages(images, type)
     return res.json(result)
   } catch (err) {
     // eslint-disable-next-line no-console
